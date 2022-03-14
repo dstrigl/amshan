@@ -13,6 +13,7 @@ class MeterMessageType(Enum):
     HDLC_DLMS = auto()
     DLMS = auto()
     P1 = auto()
+    DLMS_TINETZ = auto()
 
 
 class MeterMessageBase(ABC):

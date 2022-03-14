@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import decimal
 import json
 import logging
 import signal
@@ -11,6 +12,7 @@ from asyncio import Queue, create_task, get_event_loop, run
 from typing import Any
 
 from han import autodecoder
+from han.dlms_tinetz import DlmsTinetzFrameReader
 from han.meter_connection import (
     AsyncConnectionFactory,
     ConnectionManager,
@@ -80,6 +82,14 @@ def _get_arg_parser() -> argparse.ArgumentParser:
         default=True,
         help="automatic retry/reconnect meter connection",
     )
+    parser.add_argument(
+        "-key",
+        dest="hex_key",
+        default="",
+        type=str,
+        required=False,
+        help="hexadecimal key of your network operator",
+    )
     parser.add_argument("-v", dest="verbose", default=False)
     return parser
 
@@ -87,6 +97,8 @@ def _get_arg_parser() -> argparse.ArgumentParser:
 def _json_converter(source: Any) -> str | None:
     if isinstance(source, datetime.datetime):
         return source.isoformat()
+    elif isinstance(source, decimal.Decimal):
+        return str(source)
     return None
 
 
@@ -96,7 +108,7 @@ _decoder = autodecoder.AutoDecoder()
 def _measure_received(frame: bytes) -> None:
     decoded_frame = _decoder.decode_message_payload(frame)
     if decoded_frame:
-        json_frame = json.dumps(decoded_frame, default=_json_converter)
+        json_frame = json.dumps(decoded_frame, indent=4, default=_json_converter)
         LOG.debug("Decoded frame: %s", json_frame)
     else:
         LOG.error("Could not decode frame content: %s", frame.hex())
@@ -127,7 +139,7 @@ async def main() -> None:
         return await create_serial_message_payload_connection(
             queue,
             None,
-            None,
+            [DlmsTinetzFrameReader(args.hex_key)],
             url=args.serialdevice,
             baudrate=args.ser_baudrate,
             parity=args.ser_parity,

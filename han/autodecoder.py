@@ -6,7 +6,7 @@ from typing import cast
 
 import construct  # type: ignore
 
-from han import aidon, dlde, kaifa, kamstrup
+from han import aidon, dlde, kaifa, kamstrup, kaifa_tinetz
 from han.common import MeterMessageBase
 
 
@@ -23,6 +23,7 @@ class AutoDecoder:
         ("Kaifa", kaifa.decode_frame_content),
         ("Kamstrup", kamstrup.decode_frame_content),
         ("P1", dlde.decode_p1_readout_content),
+        ("KaifaTINETZ", kaifa_tinetz.decode_frame_content),
     ]
 
     def __init__(self) -> None:

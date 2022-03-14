@@ -8,6 +8,7 @@ FIELD_METER_TYPE_ID = "meter_type_id"
 FIELD_METER_MANUFACTURER = "meter_manufacturer"
 FIELD_METER_MANUFACTURER_ID = "meter_manufacturer_id"
 FIELD_METER_DATETIME = "meter_datetime"
+FIELD_METER_LOGICAL_DEVICE_NAME = "meter_device_name"
 FIELD_ACTIVE_POWER_IMPORT = "active_power_import"
 FIELD_ACTIVE_POWER_IMPORT_L1 = "active_power_import_l1"
 FIELD_ACTIVE_POWER_IMPORT_L2 = "active_power_import_l2"
@@ -44,6 +45,7 @@ name_obis_map: dict[str, list[str]] = {
     FIELD_METER_ID: ["96.1.0", "0.0.5"],
     FIELD_METER_TYPE: ["96.1.7", "96.1.1"],
     FIELD_METER_DATETIME: ["1.0.0"],
+    FIELD_METER_LOGICAL_DEVICE_NAME: ["42.0.0"],
     FIELD_ACTIVE_POWER_IMPORT: ["1.7.0"],
     FIELD_ACTIVE_POWER_IMPORT_L1: ["21.7.0"],
     FIELD_ACTIVE_POWER_IMPORT_L2: ["41.7.0"],
