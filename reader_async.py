@@ -98,7 +98,7 @@ def _json_converter(source: Any) -> str | None:
     if isinstance(source, datetime.datetime):
         return source.isoformat()
     elif isinstance(source, decimal.Decimal):
-        return str(source)
+        return float(source)
     return None
 
 
