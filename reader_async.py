@@ -11,6 +11,8 @@ import sys
 from asyncio import Queue, create_task, get_event_loop, run
 from typing import Any
 
+from influxdb import InfluxDBClient
+
 from han import autodecoder
 from han.dlms_tinetz import DlmsTinetzFrameReader
 from han.meter_connection import (
@@ -22,9 +24,7 @@ from han.serial_connection_factory import create_serial_message_payload_connecti
 from han.tcp_connection_factory import create_tcp_message_payload_connection
 
 logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(levelname)7s: %(message)s",
-    stream=sys.stderr,
+    level=logging.DEBUG, format="%(levelname)7s: %(message)s", stream=sys.stderr,
 )
 LOG = logging.getLogger("")
 
@@ -42,10 +42,7 @@ def _get_arg_parser() -> argparse.ArgumentParser:
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
-        "-host",
-        dest="hostandport",
-        type=valid_host_port,
-        help="input host and port separated by :",
+        "-host", dest="hostandport", type=valid_host_port, help="input host and port separated by :",
     )
     group.add_argument("-serial", dest="serialdevice", help="input serial port")
 
@@ -58,37 +55,29 @@ def _get_arg_parser() -> argparse.ArgumentParser:
         help="input serial port parity",
     )
     parser.add_argument(
-        "-sb",
-        dest="ser_baudrate",
-        default=2400,
-        type=int,
-        required=False,
-        help="input serial port baud rate",
+        "-sb", dest="ser_baudrate", default=2400, type=int, required=False, help="input serial port baud rate",
     )
     parser.add_argument("-mh", dest="mqtthost", default="localhost", help="mqtt host")
+    parser.add_argument("-mp", dest="mqttport", type=int, default=1883, help="mqtt port port")
+    parser.add_argument("-t", dest="mqtttopic", default="han", help="mqtt publish topic")
+    parser.add_argument("-dumpfile", dest="dumpfile", help="dump received bytes to file")
     parser.add_argument(
-        "-mp", dest="mqttport", type=int, default=1883, help="mqtt port port"
+        "-r", dest="reconnect", type=bool, default=True, help="automatic retry/reconnect meter connection",
     )
     parser.add_argument(
-        "-t", dest="mqtttopic", default="han", help="mqtt publish topic"
+        "-key", dest="hex_key", type=str, required=False, help="hexadecimal key of your network operator",
     )
     parser.add_argument(
-        "-dumpfile", dest="dumpfile", help="dump received bytes to file"
+        "-influxdb-host", dest="influxdb_host", type=str, required=False, help="InfluxDB host",
     )
     parser.add_argument(
-        "-r",
-        dest="reconnect",
-        type=bool,
-        default=True,
-        help="automatic retry/reconnect meter connection",
+        "-influxdb-user", dest="influxdb_user", type=str, required=False, help="InfluxDB username",
     )
     parser.add_argument(
-        "-key",
-        dest="hex_key",
-        default="",
-        type=str,
-        required=False,
-        help="hexadecimal key of your network operator",
+        "-influxdb-pwd", dest="influxdb_pwd", type=str, required=False, help="InfluxDB password",
+    )
+    parser.add_argument(
+        "-influxdb-db", dest="influxdb_db", type=str, required=False, help="InfluxDB database",
     )
     parser.add_argument("-v", dest="verbose", default=False)
     return parser
@@ -104,12 +93,40 @@ def _json_converter(source: Any) -> str | None:
 
 _decoder = autodecoder.AutoDecoder()
 
+_influxdb_client: InfluxDBClient | None = None
+
 
 def _measure_received(frame: bytes) -> None:
     decoded_frame = _decoder.decode_message_payload(frame)
     if decoded_frame:
         json_frame = json.dumps(decoded_frame, indent=4, default=_json_converter)
+        print()
         LOG.debug("Decoded frame: %s", json_frame)
+        if _influxdb_client:
+            influxdb_points = [
+                {
+                    "measurement": "kaifa_tinetz",
+                    "tags": {
+                        "meter_id": decoded_frame["meter_id"],
+                        "meter_device_name": decoded_frame["meter_device_name"],
+                    },
+                    "fields": {
+                        "voltage_l1": decoded_frame["voltage_l1"],
+                        "voltage_l2": decoded_frame["voltage_l2"],
+                        "voltage_l3": decoded_frame["voltage_l3"],
+                        "current_l1": decoded_frame["current_l1"],
+                        "current_l2": decoded_frame["current_l2"],
+                        "current_l3": decoded_frame["current_l3"],
+                        "active_power_import": decoded_frame["active_power_import"],
+                        "active_power_export": decoded_frame["active_power_export"],
+                        "active_power_import_total": decoded_frame["active_power_import_total"],
+                        "active_power_export_total": decoded_frame["active_power_export_total"],
+                        "reactive_power_import_total": decoded_frame["reactive_power_import_total"],
+                        "reactive_power_export_total": decoded_frame["reactive_power_export_total"],
+                    },
+                }
+            ]
+            _influxdb_client.write_points(influxdb_points)
     else:
         LOG.error("Could not decode frame content: %s", frame.hex())
 
@@ -127,13 +144,17 @@ async def main() -> None:
 
     queue: Queue[bytes] = Queue()
 
+    if args.influxdb_host and args.influxdb_user and args.influxdb_pwd and args.influxdb_db:
+        global _influxdb_client
+        _influxdb_client = InfluxDBClient(
+            host=args.influxdb_host, username=args.influxdb_user, password=args.influxdb_pwd, database=args.influxdb_db
+        )
+
     create_task(_process_frames(queue))
 
     async def tcp_connection_factory() -> MeterTransportProtocol:
         host, port = args.hostandport
-        return await create_tcp_message_payload_connection(
-            queue, loop, None, host, port
-        )
+        return await create_tcp_message_payload_connection(queue, loop, None, host, port)
 
     async def serial_connection_factory() -> MeterTransportProtocol:
         return await create_serial_message_payload_connection(
