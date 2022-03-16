@@ -1,0 +1,17 @@
+[Unit]
+Description=Service for periodically writing the measured energy data from the Kaifa Smartmeter to the InfluxDB
+After=network.target
+Requires=network.target
+
+[Service]
+Type=idle
+ExecStart=/home/pi/venv/amshan/bin/python /home/pi/prog/amshan/reader_async.py -serial /dev/ttyUSB0 -sp E -key ? -influxdb-host ? -influxdb-user ? -influxdb-pwd ? -influxdb-db ?
+WorkingDirectory=/home/pi
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+RestartSec=30s
+User=pi
+
+[Install]
+WantedBy=multi-user.target
