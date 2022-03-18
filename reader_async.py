@@ -170,8 +170,8 @@ async def _process_frames(queue: "Queue[bytes]") -> None:
         frame = await queue.get()
         try:
             _measure_received(frame)
-        except Exception:
-            pass
+        except Exception as ex:
+            LOG.error(ex)
 
 
 async def main() -> None:
