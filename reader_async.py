@@ -99,6 +99,8 @@ _args: argparse.Namespace | None
 
 
 def _measure_received(frame: bytes) -> None:
+    global _influxdb_client
+    global _args
     decoded_frame = _decoder.decode_message_payload(frame)
     if decoded_frame:
         json_frame = json.dumps(decoded_frame, indent=4, default=_json_converter)
