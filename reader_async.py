@@ -8,6 +8,7 @@ import json
 import logging
 import signal
 import sys
+import time
 from asyncio import Queue, create_task, get_event_loop, run
 from typing import Any
 
@@ -94,6 +95,7 @@ def _json_converter(source: Any) -> str | None:
 _decoder = autodecoder.AutoDecoder()
 
 _influxdb_client: InfluxDBClient | None = None
+_args: argparse.Namespace | None
 
 
 def _measure_received(frame: bytes) -> None:
@@ -102,6 +104,21 @@ def _measure_received(frame: bytes) -> None:
         json_frame = json.dumps(decoded_frame, indent=4, default=_json_converter)
         print()
         LOG.debug("Decoded frame: %s", json_frame)
+
+        if (
+            _influxdb_client is None
+            and _args.influxdb_host
+            and _args.influxdb_user
+            and _args.influxdb_pwd
+            and _args.influxdb_db
+        ):
+            _influxdb_client = InfluxDBClient(
+                host=_args.influxdb_host,
+                username=_args.influxdb_user,
+                password=_args.influxdb_pwd,
+                database=_args.influxdb_db,
+            )
+
         if _influxdb_client:
             influxdb_points = [
                 {
@@ -126,7 +143,23 @@ def _measure_received(frame: bytes) -> None:
                     },
                 }
             ]
-            _influxdb_client.write_points(influxdb_points)
+            for _ in range(2):
+                try:
+                    _influxdb_client.write_points(influxdb_points)
+                    break
+                except Exception:
+                    time.sleep(1)
+                    try:
+                        _influxdb_client = InfluxDBClient(
+                            host=_args.influxdb_host,
+                            username=_args.influxdb_user,
+                            password=_args.influxdb_pwd,
+                            database=_args.influxdb_db,
+                        )
+                    except Exception:
+                        pass
+            else:
+                _influxdb_client = None
     else:
         LOG.error("Could not decode frame content: %s", frame.hex())
 
@@ -134,21 +167,20 @@ def _measure_received(frame: bytes) -> None:
 async def _process_frames(queue: "Queue[bytes]") -> None:
     while True:
         frame = await queue.get()
-        _measure_received(frame)
+        try:
+            _measure_received(frame)
+        except Exception:
+            pass
 
 
 async def main() -> None:
     """Start reading."""
+    global _args
     args = _get_arg_parser().parse_args()
+    _args = args
     loop = get_event_loop()
 
     queue: Queue[bytes] = Queue()
-
-    if args.influxdb_host and args.influxdb_user and args.influxdb_pwd and args.influxdb_db:
-        global _influxdb_client
-        _influxdb_client = InfluxDBClient(
-            host=args.influxdb_host, username=args.influxdb_user, password=args.influxdb_pwd, database=args.influxdb_db
-        )
 
     create_task(_process_frames(queue))
 
