@@ -147,7 +147,8 @@ def _measure_received(frame: bytes) -> None:
                 try:
                     _influxdb_client.write_points(influxdb_points)
                     break
-                except Exception:
+                except Exception as ex1:
+                    LOG.error(ex1)
                     time.sleep(1)
                     try:
                         _influxdb_client = InfluxDBClient(
@@ -156,8 +157,8 @@ def _measure_received(frame: bytes) -> None:
                             password=_args.influxdb_pwd,
                             database=_args.influxdb_db,
                         )
-                    except Exception:
-                        pass
+                    except Exception as ex2:
+                        LOG.error(ex2)
             else:
                 _influxdb_client = None
     else:
