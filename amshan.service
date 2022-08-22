@@ -5,7 +5,7 @@ Requires=network.target
 
 [Service]
 Type=idle
-ExecStart=/home/pi/venv/amshan/bin/python /home/pi/prog/amshan/reader_async.py -serial /dev/ttyUSB0 -sp E -key ? -influxdb-host ? -influxdb-user ? -influxdb-pwd ? -influxdb-db ?
+ExecStart=/home/pi/venv/amshan/bin/python /home/pi/prog/amshan/reader_async.py -serial /dev/ttyUSB0 -sp E -key <TINETZ-Code> -influxdb-host <IP-of-InfluxDB-Host> -influxdb-user <InfluxDB-User> -influxdb-pwd <InfluxDB-Password> -influxdb-db <InfluxDB-Database-Name>
 WorkingDirectory=/home/pi
 StandardOutput=inherit
 StandardError=inherit
