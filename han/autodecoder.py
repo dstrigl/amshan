@@ -19,10 +19,10 @@ class AutoDecoder:
     """
 
     payload_decoder_functions = [
-        ("Aidon", aidon.decode_frame_content),
-        ("Kaifa", kaifa.decode_frame_content),
-        ("Kamstrup", kamstrup.decode_frame_content),
-        ("P1", dlde.decode_p1_readout_content),
+        # ("Aidon", aidon.decode_frame_content),
+        # ("Kaifa", kaifa.decode_frame_content),
+        # ("Kamstrup", kamstrup.decode_frame_content),
+        # ("P1", dlde.decode_p1_readout_content),
         ("KaifaTINETZ", kaifa_tinetz.decode_frame_content),
     ]
 
