@@ -80,7 +80,10 @@ def _get_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-influxdb-db", dest="influxdb_db", type=str, required=False, help="InfluxDB database",
     )
-    parser.add_argument("-v", dest="verbose", default=False)
+    parser.add_argument(
+        "-v", dest="verbose", action="store_true", help="increase output verbosity",
+    )    
+    
     return parser
 
 
